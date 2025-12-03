@@ -1,31 +1,38 @@
 name: UPB Devops 2025 CICD
 
-
 on:
- push:
-   branches: [main]
-
+  push:
+    branches: [main]
 
 jobs:
- build:
-   runs-on: ubuntu-latest
-   steps:
-     - name: Checkout source
-       uses: actions/checkout@v4
-     - name: Login to docker hub
-       run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-     - name: Build docker image
-       run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app .
-     - name: Publish image to docker hub
-       run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
 
- deploy:
-   needs: build
-   runs-on: [self-hosted]
-   steps:
-     - name: Pull image from docker hub
-       run: docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
-     - name: Delete old container
-       run: docker rm -f nodejs-app-container
-     - name: Run docker container
-       run: docker run -d -p 3000:3000 --name nodejs-app-container ${{ secrets.DOCKER_USERNAME }}/nodejs-app
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest .
+
+      - name: Publish image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Pull image from Docker Hub
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+
+      - name: Delete old container if exists
+        run: docker rm -f nodejs-app-container || true
+
+      - name: Run new container
+        run: docker run -d -p 3000:3000 --name nodejs-app-container ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+
+      - name: Reload Apache
+        run: sudo systemctl reload apache2
