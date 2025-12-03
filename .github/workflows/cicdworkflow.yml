@@ -5,8 +5,10 @@ on:
     branches: [main]
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -17,21 +19,24 @@ jobs:
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest .
 
-      - name: Publish image to Docker Hub
+      - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+
 
   deploy:
     needs: build
     runs-on: [self-hosted]
+
     steps:
+
       - name: Pull image from Docker Hub
         run: docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
 
-      - name: Delete old container if exists
+      - name: Remove old container
         run: docker rm -f nodejs-app-container || true
 
       - name: Run new container
         run: docker run -d -p 3000:3000 --name nodejs-app-container ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
 
-      - name: Reload Apache
-        run: sudo systemctl reload apache2
+      - name: Reload Apache (httpd on Amazon Linux)
+        run: sudo systemctl reload httpd
